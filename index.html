@@ -1,7 +1,599 @@
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Rätsel</title></head>
-<body style="margin:0;background:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh">
-  <img src="mo1.png" style="max-width:100%;height:auto">
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>De Mo, die Snake ;)</title>
+<style>
+  :root{
+    --ink:#1a1730;
+    --board:#241f42;
+    --grid:#2d2751;
+    --snake:#f2c14e;
+    --snake-head:#ffe6a3;
+    --food:#ef6461;
+    --paper:#ece8f5;
+    --muted:#9a92b8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font:400 17px/1.6 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    display:flex;
+    justify-content:center;
+    padding:28px 18px 64px;
+    -webkit-text-size-adjust:100%;
+  }
+  main{width:100%;max-width:520px}
+
+  h1{font-size:34px;line-height:1.1;font-weight:400;letter-spacing:-.01em;margin:0 0 4px}
+  .lede{margin:0 0 22px;color:var(--muted);font-size:15px}
+
+  .stage{position:relative;margin-bottom:14px}
+  canvas{
+    display:block;width:100%;height:auto;
+    background:var(--board);border-radius:10px;touch-action:none;
+  }
+  .overlay{
+    position:absolute;inset:0;display:grid;place-content:center;gap:10px;
+    text-align:center;padding:24px;border-radius:10px;background:rgba(26,23,48,.84);
+  }
+  .overlay[hidden]{display:none}
+  .overlay p{margin:0}
+  .overlay .big{font-size:22px}
+  .overlay .small{font-size:14px;color:var(--muted)}
+
+  .hud{
+    display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    font-size:14px;color:var(--muted);margin-bottom:12px;
+  }
+  .hud b{font:600 17px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--paper);margin-left:4px}
+
+  .gate{
+    border:1px solid var(--grid);border-radius:10px;padding:14px 16px;
+    font-size:15px;color:var(--muted);margin-bottom:34px;
+  }
+  .gate.open{border-color:var(--snake);color:var(--paper)}
+  .gate p{margin:0}
+  .gate p + p{margin-top:6px}
+
+  h2{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--muted);margin:0 0 12px}
+
+  .cards{display:grid;gap:14px;margin-bottom:34px}
+  .card{
+    border-radius:10px;background:var(--board);padding:16px 18px;
+    opacity:.45;pointer-events:none;
+  }
+  .card.live{opacity:1;pointer-events:auto}
+  .card.solved{box-shadow:inset 2px 0 0 var(--snake)}
+  .card-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+  .card-nr{font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted)}
+  .card.solved .card-nr{color:var(--snake)}
+  .tag{font-size:12px;color:var(--muted)}
+  .puzzle{margin:0 0 14px;font-size:17px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .card.solved .row{display:none}
+  input[type=text]{
+    flex:1 1 170px;min-width:0;padding:10px 12px;border-radius:8px;
+    border:1px solid var(--grid);background:var(--ink);color:var(--paper);
+    font:inherit;font-size:16px;
+  }
+  button{
+    padding:10px 18px;border-radius:8px;border:0;background:var(--snake);
+    color:#2a2110;font:inherit;font-size:15px;font-weight:600;cursor:pointer;
+  }
+  button:hover:not(:disabled){background:var(--snake-head)}
+  button:disabled{background:var(--grid);color:var(--muted);cursor:not-allowed}
+  .verdict{margin:10px 0 0;font-size:15px;min-height:0}
+  .verdict.no{color:var(--food)}
+  .reveal{
+    margin:0;padding:12px 14px;border-radius:8px;background:var(--ink);
+    font-size:17px;display:none;
+  }
+  .card.solved .reveal{display:block}
+  @keyframes reveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .card.fresh .reveal{animation:reveal .45s ease-out}
+
+  .choice{border-top:1px solid var(--grid);padding-top:20px}
+  .choice[hidden]{display:none}
+  .choice-note{margin:0 0 14px;color:var(--muted);font-size:15px}
+  .choice .row{gap:10px}
+  .choice button{flex:1 1 140px}
+  .picked{margin:14px 0 0;font-size:17px;display:none}
+  .picked.on{display:block}
+
+  .encoder{margin-top:40px;border-top:1px solid var(--grid);padding-top:18px}
+  .encoder textarea{
+    width:100%;min-height:80px;padding:10px 12px;border-radius:8px;
+    border:1px solid var(--grid);background:var(--board);color:var(--paper);
+    font:inherit;font-size:15px;
+  }
+  .encoder output{
+    display:block;margin-top:10px;word-break:break-all;
+    font:400 13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--snake);
+  }
+
+  :focus-visible{outline:2px solid var(--snake);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>De Mo, die Snake ;)</h1>
+  <p class="lede">Pfeiltasten oder WASD, Leertaste pausiert, auf dem Handy wischen.</p>
+
+  <div class="stage">
+    <canvas id="board" width="440" height="440" aria-label="Snake-Spielfeld"></canvas>
+    <div class="overlay" id="overlay">
+      <p class="big" id="overlayTitle">Bereit?</p>
+      <p class="small" id="overlayHint">Leertaste drücken oder aufs Feld tippen</p>
+    </div>
+  </div>
+
+  <div class="hud">
+    <span>Punkte <b id="score">0</b></span>
+    <span>Bester <b id="best">0</b></span>
+    <span id="status">verschlossen</span>
+  </div>
+
+  <div class="gate" id="gate">
+    <p>D Rätsel sind leider nonig zuegänglich.</p>
+    <p>Zum sie freizschalte, erreich exakt die Punktezahl, wo de Ahzahl Haltestelle vom «Tram» Nummere 1 entspricht. Nöd meh, nöd weniger — und beende s Spiel mit genau dere Zahl.</p>
+  </div>
+
+
+  <div class="cards" id="cards"></div>
+
+  <section class="choice" id="choice" hidden>
+    <h2>Dini Wahl</h2>
+    <p class="choice-note" id="choiceNote">Lös d Rätsel 2, 3 und 4, denn chasch eis vo dene drü uswähle.</p>
+    <div class="row" id="choiceRow"></div>
+    <p class="picked" id="picked"></p>
+  </section>
+
+  <section class="encoder" id="encoder" hidden>
+    <h2>Encoder</h2>
+    <textarea id="encIn" placeholder="Text hier eintippen"></textarea>
+    <output id="encOut"></output>
+  </section>
+</main>
+
+<script>
+
+const KEY = "snake";
+
+const enc = s => btoa(String.fromCharCode(...[...new TextEncoder().encode(s)]
+  .map((b, i) => b ^ KEY.charCodeAt(i % KEY.length))));
+const dec = s => new TextDecoder().decode(Uint8Array.from(atob(s),
+  (c, i) => c.charCodeAt(0) ^ KEY.charCodeAt(i % KEY.length)));
+
+const CONFIG = {
+  // Anzahl Haltestellen der heutigen Linie 1.
+  unlockScore: 35,
+
+  riddles: [
+    {
+      required: false,
+      puzzle: "Wo befindet sich die kürzeste Seilbahn der Schweiz?",
+      answers: [
+        "Ka3dGQwQBkEjJw==",
+        "CRsEGQwQBkEDBw==",
+        "Ow8UGxERDwkFDRwIQTGmzxwICA0=",
+        "Ka3dGQwQBkEjBAYeFQkEGwAJBAM=",
+        "OyxBMabPHAgIDQ==",
+        "Ka3dGQwQBg=="
+      ],
+      activity: "NAOi1wAHAggIDRZOOwYKAQkESwweTjseAgELEh8EBhwABRFd"
+    },
+    {
+      required: true,
+      puzzle: "Ich sehe kaum, rieche kaum, bin giftig und orientiere mich mit elektrischen Signalen. Was bin ich?",
+      answers: [
+        "IA0JBQQRCw0fDBYc",
+        "Fw8SSzYQBg8KBxYCFQIAAQ==",
+        "IwIAHxwDGxI="
+      ],
+      activity: "MAYIGxUaAEEsCh8IQR4LF04jqMEBCw8HBB0KQQILUy8TBBYSQA=="
+    },
+    {
+      required: true,
+      puzzle: "Ich bin das Land, in dem die Zeit am vielfältigsten ist. Welches Land bin ich?",
+      answers: [
+        "NRwABQ4BCwgIDQ==",
+        "NRwABQYW"
+      ],
+      activity: "IAsPGAoBBxQGRRoAQTmmzxoVAg0GDAQHBxIKTw=="
+    },
+    {
+      required: true,
+      puzzle: "Die weibliche Ziege des Meeres.",
+      answers: [
+        "IBoEGw0SAAgORTQHDQYKAQs=",
+        "IBoEGw1TKQgHCBwcBA==",
+        "NAcNBgoBCw==",
+        "IBoEGw0SAAgO"
+      ],
+      activity: "MgoXDgsHGxMORTIcBAUEUxsPD0UyDxMOSCAeABEMFhwGCgsUTggFRTELEwVL"
+    },
+    {
+      required: false,
+      puzzle: "Der siebtgrösste Bahnhof der Schweiz nach Passagieren.",
+      answers: [
+        "PAsTBwwYAQ8=",
+        "Ka3dGQwQBkEkAAECCAAKHQ==",
+        "MQ8JBQ0cCEEkAAECCAAKHQ==",
+        "KRsEGQwQBkEkAAECCAAKHQ=="
+      ],
+      activity: "KQAACA0HTggGRTACDh4BAE4jAhYHHA5F"
+    }
+  ],
+
+  // Programmtext am Schluss, verschluesselt
+  programStart: "NAOi1wAHAggIDRZOOwYKAQkESxAVCgRLLRoHBwoNARpBAghTNBQMSw==",
+  programEnd: "Ia3dCA4VDwkZEVMbDw9FEh0CAwmw0hIOCxdOOwUEEAYVSwweTiIHCgYKEksnGh0VGQpd",
+
+  gridSize: 22,
+  startSpeed: 140,
+  speedUp: 0,        // 0 = konstantes Tempo
+  minSpeed: 70,
+
+  // Die Schlange verrutscht alle 25 bis 45 Schritte um eine Zeile.
+  // null setzen, um es abzuschalten.
+  glitchEvery: [8, 20]
+};
+/* ================================================================ */
+
+const canvas = document.getElementById('board');
+const ctx    = canvas.getContext('2d');
+const N      = CONFIG.gridSize;
+const CELL   = canvas.width / N;
+
+const el = {
+  score: document.getElementById('score'),
+  best: document.getElementById('best'),
+  status: document.getElementById('status'),
+  gate: document.getElementById('gate'),
+  cards: document.getElementById('cards'),
+  choice: document.getElementById('choice'),
+  choiceRow: document.getElementById('choiceRow'),
+  choiceNote: document.getElementById('choiceNote'),
+  picked: document.getElementById('picked'),
+  overlay: document.getElementById('overlay'),
+  oTitle: document.getElementById('overlayTitle'),
+  oHint: document.getElementById('overlayHint')
+};
+
+let snake, dir, queued, food, score, best = 0, speed, timer;
+let stepsToGlitch = 0, flash = 0;
+let state = 'ready';
+let gateOpen = false;
+const solved = new Set();
+let choiceMade = false;
+
+/* ---------- Antwortvergleich ---------- */
+const norm = s => s.toLowerCase().trim()
+  .replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss')
+  .replace(/[^a-z0-9]/g,'');
+
+/* ---------- Spiel ---------- */
+reset();
+draw();
+
+function reset(){
+  const mid = Math.floor(N / 2);
+  snake  = [{x: mid, y: mid}, {x: mid - 1, y: mid}, {x: mid - 2, y: mid}];
+  dir    = {x: 1, y: 0};
+  queued = [];
+  score  = 0;
+  speed  = CONFIG.startSpeed;
+  stepsToGlitch = nextGlitch();
+  flash  = 0;
+  placeFood();
+  updateHud();
+}
+
+function placeFood(){
+  const free = [];
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++)
+      if (!snake.some(s => s.x === x && s.y === y)) free.push({x, y});
+  food = free[Math.floor(Math.random() * free.length)];
+}
+
+function start(){
+  if (state === 'playing') return;
+  if (state === 'over') reset();
+  state = 'playing';
+  el.overlay.hidden = true;
+  tick();
+}
+
+function pause(){
+  if (state !== 'playing') return;
+  state = 'paused';
+  clearTimeout(timer);
+  showOverlay('Pause', 'Leertaste, dann geht es weiter');
+}
+
+function tick(){
+  clearTimeout(timer);
+  step();
+  if (state === 'playing') timer = setTimeout(tick, speed);
+}
+
+function nextGlitch(){
+  if (!CONFIG.glitchEvery) return Infinity;
+  const [a, b] = CONFIG.glitchEvery;
+  return a + Math.floor(Math.random() * (b - a + 1));
+}
+
+// Verschiebt die ganze Schlange um eine Zeile quer zur Fahrtrichtung.
+// Nur wenn alle Glieder im Feld bleiben, sonst waere es ein unfairer Tod.
+function maybeGlitch(){
+  if (--stepsToGlitch > 0) return;
+  stepsToGlitch = nextGlitch();
+  const opts = dir.x !== 0
+    ? [{x: 0, y: -1}, {x: 0, y: 1}]
+    : [{x: -1, y: 0}, {x: 1, y: 0}];
+  if (Math.random() < .5) opts.reverse();
+  for (const o of opts){
+    const fits = snake.every(s =>
+      s.x + o.x >= 0 && s.x + o.x < N && s.y + o.y >= 0 && s.y + o.y < N);
+    if (!fits) continue;
+    snake = snake.map(s => ({x: s.x + o.x, y: s.y + o.y}));
+    if (snake.some(s => s.x === food.x && s.y === food.y)) placeFood();
+    flash = 3;
+    return;
+  }
+}
+
+function step(){
+  maybeGlitch();
+  if (queued.length) dir = queued.shift();
+  const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+  const hitWall = head.x < 0 || head.y < 0 || head.x >= N || head.y >= N;
+  const hitSelf = snake.some((s, i) => i < snake.length - 1 && s.x === head.x && s.y === head.y);
+  if (hitWall || hitSelf) return gameOver();
+
+  snake.unshift(head);
+  if (head.x === food.x && head.y === food.y){
+    score++;
+    speed = Math.max(CONFIG.minSpeed, speed - CONFIG.speedUp);
+    placeFood();
+    updateHud();
+  } else {
+    snake.pop();
+  }
+  draw();
+}
+
+function gameOver(){
+  state = 'over';
+  clearTimeout(timer);
+  best = Math.max(best, score);
+  updateHud();
+  draw();
+
+  if (score === CONFIG.unlockScore && !gateOpen){
+    openGate();
+    showOverlay('Genau richtig.', 'Die Rätsel sind offen — scroll nach unten');
+    el.gate.scrollIntoView({behavior: 'smooth', block: 'center'});
+  } else {
+    showOverlay(`${score} Punkte`, 'Leertaste für ein neues Spiel');
+  }
+}
+
+function openGate(){
+  gateOpen = true;
+  el.gate.classList.add('open');
+  el.gate.innerHTML =
+    '<p>Souverän! Hoffe s Snake het dich nöd allzu fest in Wahnsin triebe ;)</p>' +
+    '<p>Denn folget ezt 5 Rätsel wod muesch löse zum usefinde was mir mached. Sie verberged alli ei Aktivität (wo nüt mitem Rätsel selber ztue hend). Die erst und die letzt sind gfixt, aber vode mittlere drü chasch die uswähle, wod am meiste lust häsch.</p>' +
+    '<p>Google etc. isch obv nöd erlaubt und wür dies Ego ja ohnehin nöd zuelah ;)</p>';
+  el.status.textContent = 'offen';
+  el.choice.hidden = false;
+  renderCards();
+  renderChoice();
+}
+
+function showOverlay(title, hint){
+  el.oTitle.textContent = title;
+  el.oHint.textContent = hint;
+  el.overlay.hidden = false;
+}
+
+/* ---------- Zeichnen ---------- */
+function draw(){
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = getVar('--board');
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = getVar('--grid');
+  ctx.lineWidth = 1;
+  for (let i = 1; i < N; i++){
+    const p = Math.round(i * CELL) + .5;
+    ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, canvas.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(canvas.width, p); ctx.stroke();
+  }
+
+  ctx.fillStyle = getVar('--food');
+  ctx.beginPath();
+  ctx.arc((food.x + .5) * CELL, (food.y + .5) * CELL, CELL * .3, 0, Math.PI * 2);
+  ctx.fill();
+
+  snake.forEach((s, i) => {
+    ctx.fillStyle = i === 0 ? getVar('--snake-head') : getVar('--snake');
+    cell(s.x, s.y, i === 0 ? 1 : 2);
+  });
+
+  if (flash > 0){
+    ctx.strokeStyle = getVar('--food');
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, 1.5, canvas.width - 3, canvas.height - 3);
+    flash--;
+  }
+}
+
+function cell(x, y, inset){
+  const px = x * CELL + inset, py = y * CELL + inset, size = CELL - inset * 2;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(px, py, size, size, 4);
+  else ctx.rect(px, py, size, size);
+  ctx.fill();
+}
+
+function getVar(n){
+  return getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+}
+
+function updateHud(){
+  el.score.textContent = score;
+  el.best.textContent = best;
+}
+
+/* ---------- Rätselkarten ---------- */
+function renderCards(){
+  el.cards.innerHTML = '';
+  CONFIG.riddles.forEach((r, i) => {
+    const card = document.createElement('div');
+    card.className = 'card live';
+    card.id = 'card-' + i;
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="card-nr">Rätsel &amp; ${r.required ? 'Wahlaktivität' : 'Aktivität'} ${i + 1}</span>
+      </div>
+      <p class="puzzle"></p>
+      <div class="row">
+        <input type="text" autocomplete="off" spellcheck="false" placeholder="Lösung">
+        <button type="button">Prüfen</button>
+      </div>
+      <p class="verdict"></p>
+      <p class="reveal"></p>`;
+    card.querySelector('.puzzle').textContent = r.puzzle;
+
+    const input   = card.querySelector('input');
+    const verdict = card.querySelector('.verdict');
+
+    const check = () => {
+      const g = norm(input.value);
+      if (!g) return;
+      if (r.answers.some(a => norm(dec(a)) === g)){
+        solved.add(i);
+        card.querySelector('.reveal').textContent = dec(r.activity);
+        card.classList.add('solved', 'fresh');
+        verdict.textContent = '';
+        renderChoice();
+      } else {
+        verdict.textContent = 'Nope.';
+        verdict.className = 'verdict no';
+        input.select();
+      }
+    };
+
+    card.querySelector('button').addEventListener('click', check);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+    el.cards.appendChild(card);
+  });
+}
+
+/* ---------- Auswahl ---------- */
+function renderChoice(){
+  const required = CONFIG.riddles
+    .map((r, i) => ({r, i}))
+    .filter(o => o.r.required);
+  const ready = gateOpen && required.every(o => solved.has(o.i));
+
+  el.choiceNote.textContent = ready
+    ? 'Alli drü sind bekannt. Wähl die us, wod am meiste lust häsch.'
+    : 'Lös d Rätsel 2, 3 und 4, denn chasch eis vo dene drü uswähle.';
+
+  el.choiceRow.innerHTML = '';
+  required.forEach(o => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = ready ? dec(o.r.activity) : `Rätsel ${o.i + 1}`;
+    b.disabled = !ready || choiceMade;
+    b.addEventListener('click', () => {
+      choiceMade = true;
+      el.picked.textContent = programText(dec(o.r.activity));
+      el.picked.classList.add('on');
+      [...el.choiceRow.children].forEach(c => c.disabled = true);
+    });
+    el.choiceRow.appendChild(b);
+  });
+}
+
+function programText(activity){
+  const first = CONFIG.riddles.length - 1;
+  const start = solved.has(0)     ? dec(CONFIG.programStart) : '(no gheim, Rätsel 1)';
+  const end   = solved.has(first) ? dec(CONFIG.programEnd)   : '(no gheim, Rätsel 5)';
+  return `Tiptop, demfall wer das s Programm: ${start} ${activity} ${end} ` +
+         'Denn mümmer ez nurno es Datum finde :)';
+}
+
+/* ---------- Steuerung ---------- */
+const KEYS = {
+  ArrowUp:{x:0,y:-1}, w:{x:0,y:-1},
+  ArrowDown:{x:0,y:1}, s:{x:0,y:1},
+  ArrowLeft:{x:-1,y:0}, a:{x:-1,y:0},
+  ArrowRight:{x:1,y:0}, d:{x:1,y:0}
+};
+
+function turn(d){
+  const last = queued.length ? queued[queued.length - 1] : dir;
+  if (d.x === -last.x && d.y === -last.y) return;
+  if (d.x === last.x && d.y === last.y) return;
+  if (queued.length < 2) queued.push(d);
+}
+
+addEventListener('keydown', e => {
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+  if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
+  const d = KEYS[e.key] || KEYS[e.key.toLowerCase()];
+  if (d){
+    e.preventDefault();
+    if (state === 'ready' || state === 'paused') start();
+    turn(d);
+  } else if (e.code === 'Space'){
+    e.preventDefault();
+    state === 'playing' ? pause() : start();
+  } else if (e.key.toLowerCase() === 'r'){
+    clearTimeout(timer);
+    state = 'over';
+    start();
+  }
+});
+
+canvas.addEventListener('click', () => state === 'playing' ? pause() : start());
+el.overlay.addEventListener('click', () => start());
+
+let touch = null;
+canvas.addEventListener('touchstart', e => {
+  touch = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+}, {passive: true});
+
+canvas.addEventListener('touchend', e => {
+  if (!touch) return;
+  const dx = e.changedTouches[0].clientX - touch.x;
+  const dy = e.changedTouches[0].clientY - touch.y;
+  touch = null;
+  if (Math.abs(dx) < 18 && Math.abs(dy) < 18) return;
+  if (state !== 'playing') start();
+  turn(Math.abs(dx) > Math.abs(dy)
+    ? {x: dx > 0 ? 1 : -1, y: 0}
+    : {x: 0, y: dy > 0 ? 1 : -1});
+}, {passive: true});
+
+/* ---------- Encoder, nur mit ?enc in der URL ---------- */
+if (location.search.includes('enc')){
+  const box = document.getElementById('encoder');
+  box.hidden = false;
+  const inp = document.getElementById('encIn');
+  const out = document.getElementById('encOut');
+  inp.addEventListener('input', () => { out.textContent = inp.value ? enc(inp.value) : ''; });
+}
+</script>
 </body>
 </html>
