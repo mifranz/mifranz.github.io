@@ -314,7 +314,7 @@ function pause(){
   if (state !== 'playing') return;
   state = 'paused';
   clearTimeout(timer);
-  showOverlay('Pause', 'Leertaste, dann geht es weiter');
+  showOverlay('Pause', 'Leertaste, denn gahts wiiter');
 }
 
 function tick(){
@@ -378,10 +378,10 @@ function gameOver(){
 
   if (score === CONFIG.unlockScore && !gateOpen){
     openGate();
-    showOverlay('Genau richtig.', 'Die Rätsel sind offen — scroll nach unten');
+    showOverlay('Genau richtig.', 'D Rätsel sind offen — scroll abe');
     el.gate.scrollIntoView({behavior: 'smooth', block: 'center'});
   } else {
-    showOverlay(`${score} Punkte`, 'Leertaste für ein neues Spiel');
+    showOverlay(`${score} Punkte`, 'Leertaste für es neus Spiel');
   }
 }
 
